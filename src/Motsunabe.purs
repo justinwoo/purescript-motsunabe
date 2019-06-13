@@ -2,6 +2,8 @@ module Motsunabe where
 
 import Prelude
 
+import Data.Lazy (Lazy)
+import Data.Lazy as Lazy
 import Data.List (List(..), (:))
 import Data.String as String
 import Data.Tuple (Tuple(..))
@@ -59,10 +61,16 @@ be w k (Tuple i (DAppend x y) : z) = be w k (Tuple i x : Tuple i y : z)
 be w k (Tuple i (DNest j x) : z) = be w k ((Tuple (i + j) x) : z)
 be w k (Tuple i (DText s) : z) = PText s (be w (k + String.length s) z)
 be w k (Tuple i DLine : z) = PLine i (be w i z)
-be w k (Tuple i (DAlt x y) : z) = better w k (be w k ((Tuple i x) : z)) (be w k ((Tuple i y) : z))
+be w k (Tuple i (DAlt x y) : z) = better w k
+  (Lazy.defer $ \_ -> be w k ((Tuple i x) : z))
+  (Lazy.defer $ \_ -> be w k ((Tuple i y) : z))
 
-better :: Int -> Int -> Print -> Print -> Print
-better w k x y = if fits (w - k) x then x else y
+better :: Int -> Int -> Lazy Print -> Lazy Print -> Print
+better w k x' y' = do
+  let x = Lazy.force x'
+  if fits (w - k) x
+    then x
+    else Lazy.force y'
 
 fits :: Int -> Print -> Boolean
 fits w x | w < 0 = false
